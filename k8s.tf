@@ -1,12 +1,8 @@
-resource "kubernetes_namespace" "ingress_nginx" {
-  metadata {
-    name = "ingress-nginx"
-  }
-}
-
 resource "helm_release" "ingress_nginx" {
-  name       = "ingress-nginx"
-  namespace  = kubernetes_namespace.ingress_nginx.metadata[0].name
+  name             = "ingress-nginx"
+  namespace        = "ingress-nginx"
+  create_namespace = true
+
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
   version    = "4.13.2"
@@ -62,7 +58,7 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
       host = "app.enexis.test"
       http {
         path {
-          path     = "/"
+          path      = "/"
           path_type = "Prefix"
 
           backend {
