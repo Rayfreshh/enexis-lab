@@ -1,15 +1,17 @@
 resource "helm_release" "ingress_nginx" {
-  name             = "ingress-nginx"
-  repository       = "https://kubernetes.github.io/ingress-nginx"
-  chart            = "ingress-nginx"
-  version          = "4.13.2"
-  namespace        = "ingress-nginx"
-  create_namespace = true
-  timeout          = 900
+  name       = "ingress-nginx"
+  namespace  = "ingress-nginx"
+  repository = "https://kubernetes.github.io/ingress-nginx"
+  chart      = "ingress-nginx"
+
+  set {
+    name  = "controller.service.type"
+    value = "LoadBalancer"
+  }
 
   set {
     name  = "controller.service.loadBalancerIP"
-    value = "50.85.20.181"
+    value = "50.85.20.181"   # existing static IP in your node RG
   }
 }
 
@@ -17,24 +19,22 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
   metadata {
     name      = "enexis-ingress"
     namespace = "default"
+    annotations = {
+      "kubernetes.io/ingress.class" : "nginx"
+    }
   }
 
   spec {
-    ingress_class_name = "nginx"
-
     rule {
-      host = "enexis-app.westeurope.cloudapp.azure.com"
-
       http {
         path {
-          path      = "/"
+          path     = "/"
           path_type = "Prefix"
-
           backend {
             service {
-              name = "enexis-microservice"
+              name = "example-service"   # replace with your service name
               port {
-                number = 8000
+                number = 80
               }
             }
           }
