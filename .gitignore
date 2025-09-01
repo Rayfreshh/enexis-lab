@@ -1,0 +1,4 @@
+# Ignore Terraform local files and providers
+.terraform/
+*.tfstate
+*.tfstate.backup
