@@ -3,8 +3,7 @@ kind: Service
 metadata:
   name: enexis-microservice-service
 spec:
-  type: LoadBalancer
-  loadBalancerIP: 50.85.20.181   # Static IP assigned in Azure
+  type: ClusterIP
   selector:
     app: enexis-microservice
   ports:
