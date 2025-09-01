@@ -6,8 +6,11 @@ resource "helm_release" "ingress_nginx" {
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
 
-  timeout = 600   # 10 minutes
-  wait    = true  # wait until resources are ready
+  timeout = 600   # wait up to 10 minutes
+  wait    = true
+
+  force_update  = true   # force reapply resources if drift
+  recreate_pods = true   # restart pods if needed
 
   set {
     name  = "controller.service.type"
@@ -57,4 +60,6 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
       }
     }
   }
+
+  depends_on = [helm_release.ingress_nginx]
 }
