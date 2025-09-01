@@ -9,56 +9,31 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    env:
-      AZURE_RESOURCE_GROUP: enexis-lab-rg
-      AZURE_AKS_CLUSTER: enexis-lab-aks
-      ACR_NAME: enexislabacr123
-      IMAGE_NAME: enexis-microservice
-
     steps:
-      # Step 1: Checkout code
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      # Step 2: Login to Azure
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
 
-      # Step 3: Terraform Init & Plan
-      - name: Terraform Init
-        working-directory: ./terraform
-        run: terraform init -input=false
+      - name: Set up kubectl
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: enexis-lab-rg
+          cluster-name: enexis-lab-aks
 
-      - name: Terraform Plan
-        working-directory: ./terraform
-        run: terraform plan -out=tfplan -input=false
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        working-directory: ./terraform
-        run: terraform apply -input=false -auto-approve tfplan
-
-      # Step 4: Build Docker image
-      - name: Build Docker image
+      - name: Build and Push Docker Image
         run: |
-          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }} .
+          az acr login --name enexislabacr123
+          docker build -t enexislabacr123.azurecr.io/enexis-microservice:${{ github.sha }} .
+          docker push enexislabacr123.azurecr.io/enexis-microservice:${{ github.sha }}
 
-      # Step 5: Login to ACR
-      - name: Azure Container Registry Login
-        run: az acr login --name $ACR_NAME
-
-      # Step 6: Push Docker image
-      - name: Push Docker image
-        run: docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}
-
-      # Step 7: Get AKS credentials
-      - name: Get AKS Credentials
-        run: az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP --name $AZURE_AKS_CLUSTER --overwrite-existing
-
-      # Step 8: Update deployment with new image
       - name: Deploy to AKS
         run: |
-          kubectl set image deployment/enexis-microservice enexis-microservice=$ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}
+          kubectl set image deployment/enexis-microservice enexis-microservice=enexislabacr123.azurecr.io/enexis-microservice:${{ github.sha }}
           kubectl rollout status deployment/enexis-microservice
