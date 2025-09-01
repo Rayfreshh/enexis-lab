@@ -13,27 +13,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Azure Login
+      - name: Log in to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          auth-type: SERVICE_PRINCIPAL
 
-      - name: Set up kubectl
+      - name: Azure Kubernetes set context
         uses: azure/aks-set-context@v3
         with:
-          resource-group: enexis-lab-rg
-          cluster-name: enexis-lab-aks
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.AZURE_AKS_CLUSTER }}
 
-      - name: Build and Push Docker Image
+      - name: Log in to ACR
         run: |
-          az acr login --name enexislabacr123
-          docker build -t enexislabacr123.azurecr.io/enexis-microservice:${{ github.sha }} .
-          docker push enexislabacr123.azurecr.io/enexis-microservice:${{ github.sha }}
+          az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t ${{ secrets.ACR_NAME }}.azurecr.io/${{ secrets.IMAGE_NAME }}:${{ github.sha }} .
+          docker push ${{ secrets.ACR_NAME }}.azurecr.io/${{ secrets.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Deploy to AKS
         run: |
-          kubectl set image deployment/enexis-microservice enexis-microservice=enexislabacr123.azurecr.io/enexis-microservice:${{ github.sha }}
-          kubectl rollout status deployment/enexis-microservice
+          kubectl set image deployment/enexis-microservice enexis-microservice=${{ secrets.ACR_NAME }}.azurecr.io/${{ secrets.IMAGE_NAME }}:${{ github.sha }}
