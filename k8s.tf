@@ -1,60 +1,21 @@
 resource "helm_release" "ingress_nginx" {
-  name             = "ingress-nginx"
-  namespace        = "ingress-nginx"
-  create_namespace = true
-
+  name       = "ingress-nginx"
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
+  namespace  = "ingress-nginx"
 
-  timeout       = 600
-  wait          = true
-  force_update  = true
-  recreate_pods = true
-
-  set {
-    name  = "controller.service.type"
-    value = "LoadBalancer"
-  }
-
-  set {
-    name  = "controller.service.loadBalancerIP"
-    value = "50.85.20.181"
-  }
-
-  set {
-    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group"
-    value = "MC_enexis-lab-rg_enexis-lab-aks_westeurope"
-  }
-
-  set {
-    name  = "controller.admissionWebhooks.enabled"
-    value = "false"
-  }
+  values = [
+    <<EOF
+controller:
+  service:
+    loadBalancerIP: 50.85.20.181
+    annotations:
+      service.beta.kubernetes.io/azure-load-balancer-resource-group: MC_enexis-lab-rg_enexis-lab-aks_westeurope
+      service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /healthz
+EOF
+  ]
 }
 
-# ✅ Corrected microservice Service (ClusterIP only)
-resource "kubernetes_service_v1" "enexis_microservice" {
-  metadata {
-    name      = "enexis-microservice-service"
-    namespace = "default"
-  }
-
-  spec {
-    selector = {
-      app = "enexis-microservice"
-    }
-
-    port {
-      port        = 80
-      target_port = 8000
-      protocol    = "TCP"
-    }
-
-    type = "ClusterIP"
-  }
-}
-
-# ✅ Ingress pointing to the service
 resource "kubernetes_ingress_v1" "enexis_ingress" {
   metadata {
     name      = "enexis-ingress"
@@ -69,11 +30,12 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
       host = "app.enexis.test"
       http {
         path {
-          path      = "/"
+          path     = "/"
           path_type = "Prefix"
+
           backend {
             service {
-              name = kubernetes_service_v1.enexis_microservice.metadata[0].name
+              name = "enexis-microservice-service"
               port {
                 number = 80
               }
@@ -83,6 +45,24 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
       }
     }
   }
+}
 
-  depends_on = [helm_release.ingress_nginx]
+resource "kubernetes_service_v1" "microservice" {
+  metadata {
+    name      = "enexis-microservice-service"
+    namespace = "default"
+  }
+
+  spec {
+    selector = {
+      app = "enexis-microservice"
+    }
+
+    port {
+      port        = 80
+      target_port = 8000
+    }
+
+    type = "ClusterIP"
+  }
 }
