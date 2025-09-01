@@ -1,44 +1,81 @@
-resource "helm_release" "ingress_nginx" {
-  name             = "ingress-nginx"
-  namespace        = "ingress-nginx"
-  create_namespace = true
+resource "kubernetes_namespace" "ingress_nginx" {
+  metadata {
+    name = "ingress-nginx"
+  }
+}
 
+resource "helm_release" "ingress_nginx" {
+  name       = "ingress-nginx"
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
+  namespace  = kubernetes_namespace.ingress_nginx.metadata[0].name
   version    = "4.13.2"
-
-  set {
-    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group"
-    value = "MC_enexis-lab-rg_enexis-lab-aks_westeurope"
-  }
-
-  set {
-    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-health-probe-request-path"
-    value = "/healthz"
-  }
 
   set {
     name  = "controller.service.loadBalancerIP"
     value = "50.85.20.181"
   }
-}
-
-resource "helm_release" "cert_manager" {
-  name             = "cert-manager"
-  namespace        = "cert-manager"
-  create_namespace = true
-
-  repository = "https://charts.jetstack.io"
-  chart      = "cert-manager"
-  version    = "v1.14.4"
 
   set {
-    name  = "installCRDs"
-    value = "true"
+    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group"
+    value = "MC_enexis-lab-rg_enexis-lab-aks_westeurope"
   }
 }
 
-resource "kubernetes_manifest" "letsencrypt_clusterissuer" {
+resource "kubernetes_ingress_v1" "enexis_ingress" {
+  metadata {
+    name      = "enexis-ingress"
+    namespace = "default"
+    annotations = {
+      "kubernetes.io/ingress.class" = "nginx"
+    }
+  }
+
+  spec {
+    rule {
+      host = "app.enexis.test"
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = kubernetes_service.enexis_microservice.metadata[0].name
+              port {
+                number = 80
+              }
+            }
+          }
+        }
+      }
+    }
+
+    rule {
+      host = "50.85.20.181.nip.io"
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = kubernetes_service.enexis_microservice.metadata[0].name
+              port {
+                number = 80
+              }
+            }
+          }
+        }
+      }
+    }
+
+    tls {
+      hosts       = ["50.85.20.181.nip.io"]
+      secret_name = "enexis-tls"
+    }
+  }
+}
+
+resource "kubernetes_manifest" "letsencrypt_http" {
   manifest = {
     apiVersion = "cert-manager.io/v1"
     kind       = "ClusterIssuer"
@@ -47,10 +84,10 @@ resource "kubernetes_manifest" "letsencrypt_clusterissuer" {
     }
     spec = {
       acme = {
-        server = "https://acme-v02.api.letsencrypt.org/directory"
-        email  = "samsonraymond63@yahoo.com"
+        server   = "https://acme-staging-v02.api.letsencrypt.org/directory"
+        email    = "samsonraymond63@yahoo.com"
         privateKeySecretRef = {
-          name = "letsencrypt-account-key"
+          name = "letsencrypt-http"
         }
         solvers = [{
           http01 = {
@@ -64,61 +101,21 @@ resource "kubernetes_manifest" "letsencrypt_clusterissuer" {
   }
 }
 
-resource "kubernetes_service" "enexis_microservice" {
-  metadata {
-    name      = "enexis-microservice-service"
-    namespace = "default"
-  }
-
-  spec {
-    selector = {
-      app = "enexis-microservice"
+resource "kubernetes_manifest" "enexis_certificate" {
+  manifest = {
+    apiVersion = "cert-manager.io/v1"
+    kind       = "Certificate"
+    metadata = {
+      name      = "enexis-tls"
+      namespace = "default"
     }
-
-    port {
-      port        = 80
-      target_port = 8000
-      protocol    = "TCP"
-    }
-
-    type = "ClusterIP"
-  }
-}
-
-resource "kubernetes_ingress_v1" "enexis_ingress" {
-  metadata {
-    name      = "enexis-ingress"
-    namespace = "default"
-    annotations = {
-      "kubernetes.io/ingress.class"    = "nginx"
-      "cert-manager.io/cluster-issuer" = "letsencrypt-http"
-      "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true"
-    }
-  }
-
-  spec {
-    tls {
-      hosts       = ["50.85.20.181.nip.io"]
-      secret_name = "enexis-tls"
-    }
-
-    rule {
-      host = "50.85.20.181.nip.io"
-      http {
-        path {
-          path      = "/"
-          path_type = "Prefix"
-
-          backend {
-            service {
-              name = kubernetes_service.enexis_microservice.metadata[0].name
-              port {
-                number = 80
-              }
-            }
-          }
-        }
+    spec = {
+      secretName = "enexis-tls"
+      issuerRef = {
+        name = "letsencrypt-http"
+        kind = "ClusterIssuer"
       }
+      dnsNames = ["50.85.20.181.nip.io"]
     }
   }
 }
@@ -126,4 +123,14 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
 output "ingress_url" {
   description = "Public HTTPS URL to access the microservice"
   value       = "https://50.85.20.181.nip.io"
+}
+
+output "tls_certificate_check" {
+  description = "Command to check if the TLS certificate has been issued"
+  value       = "kubectl get certificate enexis-tls -n default -o wide"
+}
+
+output "tls_secret_check" {
+  description = "Command to check if the TLS secret exists"
+  value       = "kubectl get secret enexis-tls -n default -o yaml"
 }
