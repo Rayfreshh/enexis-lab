@@ -1,9 +1,9 @@
-# Python
+# Byte-compiled / cache
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
+
+# Virtual environments
 env/
 venv/
 ENV/
@@ -11,26 +11,11 @@ env.bak/
 venv.bak/
 
 # Distribution / packaging
-.Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
+.eggs/
 *.egg
-
-# PyInstaller
-*.manifest
-*.spec
 
 # Installer logs
 pip-log.txt
@@ -48,12 +33,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-# Environments
-.env
-.env.local
-.env.*.local
-
-# IDEs
+# IDE settings
 .vscode/
 .idea/
 *.swp
@@ -72,12 +52,3 @@ Thumbs.db
 # Git
 .git/
 .gitignore
-
-# Docker
-Dockerfile*
-docker-compose*
-.dockerignore
-
-# Documentation
-README.md
-CLAUDE.md
