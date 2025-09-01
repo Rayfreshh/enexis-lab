@@ -6,11 +6,10 @@ resource "helm_release" "ingress_nginx" {
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
 
-  timeout = 600   # wait up to 10 minutes
-  wait    = true
-
-  force_update  = true   # force reapply resources if drift
-  recreate_pods = true   # restart pods if needed
+  timeout       = 600
+  wait          = true
+  force_update  = true
+  recreate_pods = true
 
   set {
     name  = "controller.service.type"
@@ -33,6 +32,29 @@ resource "helm_release" "ingress_nginx" {
   }
 }
 
+# ✅ Corrected microservice Service (ClusterIP only)
+resource "kubernetes_service_v1" "enexis_microservice" {
+  metadata {
+    name      = "enexis-microservice-service"
+    namespace = "default"
+  }
+
+  spec {
+    selector = {
+      app = "enexis-microservice"
+    }
+
+    port {
+      port        = 80
+      target_port = 8000
+      protocol    = "TCP"
+    }
+
+    type = "ClusterIP"
+  }
+}
+
+# ✅ Ingress pointing to the service
 resource "kubernetes_ingress_v1" "enexis_ingress" {
   metadata {
     name      = "enexis-ingress"
@@ -44,14 +66,14 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
 
   spec {
     rule {
-      host = "app.enexis.test"   # 👈 This matches your /etc/hosts entry
+      host = "app.enexis.test"
       http {
         path {
           path      = "/"
           path_type = "Prefix"
           backend {
             service {
-              name = "enexis-microservice-service"
+              name = kubernetes_service_v1.enexis_microservice.metadata[0].name
               port {
                 number = 80
               }
