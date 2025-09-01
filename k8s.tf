@@ -5,8 +5,9 @@ resource "helm_release" "ingress_nginx" {
 
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
-  timeout    = 600
-  wait       = true
+
+  timeout = 600   # 10 minutes
+  wait    = true  # wait until resources are ready
 
   set {
     name  = "controller.service.type"
