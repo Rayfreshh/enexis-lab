@@ -44,6 +44,7 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
 
   spec {
     rule {
+      host = "app.enexis.local"   # 👈 your custom host
       http {
         path {
           path      = "/"
