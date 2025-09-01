@@ -17,8 +17,25 @@ resource "helm_release" "ingress_nginx" {
   }
 
   set {
-    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group"
+    name  = "controller.service.annotations.\"service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group\""
     value = "MC_enexis-lab-rg_enexis-lab-aks_westeurope"
+  }
+}
+
+resource "kubernetes_service" "microservice" {
+  metadata {
+    name      = "enexis-microservice-service"
+    namespace = "default"
+  }
+  spec {
+    selector = {
+      app = "enexis-microservice"
+    }
+    port {
+      port        = 80
+      target_port = 8000
+    }
+    type = "ClusterIP"
   }
 }
 
@@ -30,17 +47,17 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
       "kubernetes.io/ingress.class" = "nginx"
     }
   }
-
   spec {
+    ingress_class_name = "nginx"
     rule {
       host = "app.enexis.test"
       http {
         path {
-          path      = "/"
+          path     = "/"
           path_type = "Prefix"
           backend {
             service {
-              name = kubernetes_service.enexis_microservice.metadata[0].name
+              name = kubernetes_service.microservice.metadata[0].name
               port {
                 number = 80
               }
@@ -49,27 +66,8 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
         }
       }
     }
-
-    rule {
-      host = "50.85.20.181.nip.io"
-      http {
-        path {
-          path      = "/"
-          path_type = "Prefix"
-          backend {
-            service {
-              name = kubernetes_service.enexis_microservice.metadata[0].name
-              port {
-                number = 80
-              }
-            }
-          }
-        }
-      }
-    }
-
     tls {
-      hosts       = ["50.85.20.181.nip.io"]
+      hosts       = ["app.enexis.test"]
       secret_name = "enexis-tls"
     }
   }
@@ -84,18 +82,20 @@ resource "kubernetes_manifest" "letsencrypt_http" {
     }
     spec = {
       acme = {
-        server   = "https://acme-staging-v02.api.letsencrypt.org/directory"
-        email    = "samsonraymond63@yahoo.com"
+        server = "https://acme-v02.api.letsencrypt.org/directory"
+        email  = "samsonraymond63@yahoo.com"
         privateKeySecretRef = {
           name = "letsencrypt-http"
         }
-        solvers = [{
-          http01 = {
-            ingress = {
-              class = "nginx"
+        solvers = [
+          {
+            http01 = {
+              ingress = {
+                class = "nginx"
+              }
             }
-          }]
-        }
+          }
+        ]
       }
     }
   }
@@ -111,31 +111,11 @@ resource "kubernetes_manifest" "enexis_certificate" {
     }
     spec = {
       secretName = "enexis-tls"
+      dnsNames   = ["app.enexis.test"]
       issuerRef = {
         name = "letsencrypt-http"
         kind = "ClusterIssuer"
       }
-      dnsNames = ["50.85.20.181.nip.io"]
     }
   }
-}
-
-output "ingress_url" {
-  description = "Public HTTPS URL to access the microservice"
-  value       = "https://50.85.20.181.nip.io"
-}
-
-output "tls_certificate_check" {
-  description = "Command to check if the TLS certificate has been issued"
-  value       = "kubectl get certificate enexis-tls -n default -o wide"
-}
-
-output "tls_secret_check" {
-  description = "Command to check if the TLS secret exists"
-  value       = "kubectl get secret enexis-tls -n default -o yaml"
-}
-
-output "tls_wait_ready" {
-  description = "Wait until the certificate is marked Ready"
-  value       = "kubectl wait --for=condition=Ready certificate/enexis-tls -n default --timeout=300s"
 }
