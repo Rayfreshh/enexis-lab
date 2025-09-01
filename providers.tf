@@ -3,7 +3,6 @@ terraform {
 
   backend "remote" {
     organization = "RAG"   # your Terraform Cloud org
-
     workspaces {
       name = "enexis-lab"  # your Terraform Cloud workspace
     }
@@ -38,17 +37,15 @@ provider "kubernetes" {
   host                   = azurerm_kubernetes_cluster.enexis_aks.kube_config[0].host
   client_certificate     = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_certificate)
   client_key             = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_key)
-  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].cluster_ca_certificate)
 
   insecure = true
 }
 
 provider "helm" {
   kubernetes {
-    host                   = azurerm_kubernetes_cluster.enexis_aks.kube_config[0].host
-    client_certificate     = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_certificate)
-    client_key             = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_key)
-    cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].cluster_ca_certificate)
+    host               = azurerm_kubernetes_cluster.enexis_aks.kube_config[0].host
+    client_certificate = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_certificate)
+    client_key         = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_key)
 
     insecure = true
   }
