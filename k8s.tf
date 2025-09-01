@@ -23,6 +23,47 @@ resource "helm_release" "ingress_nginx" {
   }
 }
 
+resource "helm_release" "cert_manager" {
+  name             = "cert-manager"
+  namespace        = "cert-manager"
+  create_namespace = true
+
+  repository = "https://charts.jetstack.io"
+  chart      = "cert-manager"
+  version    = "v1.14.4"
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+}
+
+resource "kubernetes_manifest" "letsencrypt_clusterissuer" {
+  manifest = {
+    apiVersion = "cert-manager.io/v1"
+    kind       = "ClusterIssuer"
+    metadata = {
+      name = "letsencrypt-http"
+    }
+    spec = {
+      acme = {
+        server = "https://acme-v02.api.letsencrypt.org/directory"
+        email  = "samsonraymond63@yahoo.com"
+        privateKeySecretRef = {
+          name = "letsencrypt-account-key"
+        }
+        solvers = [{
+          http01 = {
+            ingress = {
+              class = "nginx"
+            }
+          }]
+        }
+      }
+    }
+  }
+}
+
 resource "kubernetes_service" "enexis_microservice" {
   metadata {
     name      = "enexis-microservice-service"
@@ -49,13 +90,20 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
     name      = "enexis-ingress"
     namespace = "default"
     annotations = {
-      "kubernetes.io/ingress.class" = "nginx"
+      "kubernetes.io/ingress.class"    = "nginx"
+      "cert-manager.io/cluster-issuer" = "letsencrypt-http"
+      "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true"
     }
   }
 
   spec {
+    tls {
+      hosts       = ["50.85.20.181.nip.io"]
+      secret_name = "enexis-tls"
+    }
+
     rule {
-      host = "app.enexis.test"
+      host = "50.85.20.181.nip.io"
       http {
         path {
           path      = "/"
@@ -73,4 +121,9 @@ resource "kubernetes_ingress_v1" "enexis_ingress" {
       }
     }
   }
+}
+
+output "ingress_url" {
+  description = "Public HTTPS URL to access the microservice"
+  value       = "https://50.85.20.181.nip.io"
 }
