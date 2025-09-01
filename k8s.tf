@@ -5,26 +5,24 @@ resource "helm_release" "ingress_nginx" {
 
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
+  timeout    = 600
+  wait       = true
 
-  # Force LoadBalancer type
   set {
     name  = "controller.service.type"
     value = "LoadBalancer"
   }
 
-  # Explicit static IP binding
   set {
     name  = "controller.service.loadBalancerIP"
     value = "50.85.20.181"
   }
 
-  # Tell AKS which resource group the static IP belongs to
   set {
     name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group"
     value = "MC_enexis-lab-rg_enexis-lab-aks_westeurope"
   }
 
-  # Disable admission webhook to avoid TLS errors in Terraform Cloud
   set {
     name  = "controller.admissionWebhooks.enabled"
     value = "false"
