@@ -134,3 +134,8 @@ output "tls_secret_check" {
   description = "Command to check if the TLS secret exists"
   value       = "kubectl get secret enexis-tls -n default -o yaml"
 }
+
+output "tls_wait_ready" {
+  description = "Wait until the certificate is marked Ready"
+  value       = "kubectl wait --for=condition=Ready certificate/enexis-tls -n default --timeout=300s"
+}
