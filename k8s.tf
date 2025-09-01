@@ -12,13 +12,19 @@ resource "helm_release" "ingress_nginx" {
     value = "LoadBalancer"
   }
 
-  # Bind to your existing static IP
+  # Explicit static IP binding
   set {
     name  = "controller.service.loadBalancerIP"
     value = "50.85.20.181"
   }
 
-  # Disable admission webhook (avoids TLS validation issues in Terraform Cloud)
+  # Tell AKS which resource group the static IP belongs to
+  set {
+    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group"
+    value = "MC_enexis-lab-rg_enexis-lab-aks_westeurope"
+  }
+
+  # Disable admission webhook to avoid TLS errors in Terraform Cloud
   set {
     name  = "controller.admissionWebhooks.enabled"
     value = "false"
