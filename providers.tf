@@ -2,9 +2,10 @@ terraform {
   required_version = ">= 1.3"
 
   backend "remote" {
-    organization = "RAG"
+    organization = "RAG"   # your Terraform Cloud org
+
     workspaces {
-      name = "enexis-lab"
+      name = "enexis-lab"  # your Terraform Cloud workspace
     }
   }
 
@@ -38,6 +39,8 @@ provider "kubernetes" {
   client_certificate     = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_certificate)
   client_key             = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_key)
   cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].cluster_ca_certificate)
+
+  insecure = true
 }
 
 provider "helm" {
@@ -46,5 +49,7 @@ provider "helm" {
     client_certificate     = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_certificate)
     client_key             = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].client_key)
     cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.enexis_aks.kube_config[0].cluster_ca_certificate)
+
+    insecure = true
   }
 }
